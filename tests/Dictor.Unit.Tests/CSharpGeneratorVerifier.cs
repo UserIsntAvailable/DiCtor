@@ -2,14 +2,11 @@
 
 namespace Dictor.Unit.Tests;
 
-public static class CSharpSourceGeneratorVerifier<TSourceGenerator> where TSourceGenerator : ISourceGenerator, new()
+public static class CSharpGeneratorVerifier<TIncrementalGenerator>
+    where TIncrementalGenerator : IIncrementalGenerator, new()
 {
-    public class Test : CSharpSourceGeneratorTest<TSourceGenerator, XUnitVerifier>
+    public class Test : CSharpSourceGeneratorTest<Adapter<TIncrementalGenerator>, XUnitVerifier>
     {
-        public Test()
-        {
-        }
-
         protected override CompilationOptions CreateCompilationOptions()
         {
             var compilationOptions = base.CreateCompilationOptions();
