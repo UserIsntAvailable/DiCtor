@@ -19,7 +19,7 @@ public static class CSharpSourceGeneratorVerifier<TSourceGenerator> where TSourc
             );
         }
 
-        public LanguageVersion LanguageVersion { get; set; } = LanguageVersion.Default;
+        public LanguageVersion LanguageVersion { get; set; } = LanguageVersion.Preview;
 
         private static ImmutableDictionary<string, ReportDiagnostic> GetNullableWarningsFromCompiler()
         {

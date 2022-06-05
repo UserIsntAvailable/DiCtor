@@ -1,3 +1,4 @@
+global using Dictor.Generator;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
 global using Microsoft.CodeAnalysis.CSharp.Testing;
