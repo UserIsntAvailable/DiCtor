@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dictor.Generator", "src\Dictor.Generator\Dictor.Generator.csproj", "{F6BB0AE8-5076-4D2E-9F74-9B4D1499898F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dictor.Unit.Tests", "tests\Dictor.Unit.Tests\Dictor.Unit.Tests.csproj", "{F5BDAD5D-9719-4A0B-827F-46FC8AC4305F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F6BB0AE8-5076-4D2E-9F74-9B4D1499898F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6BB0AE8-5076-4D2E-9F74-9B4D1499898F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6BB0AE8-5076-4D2E-9F74-9B4D1499898F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6BB0AE8-5076-4D2E-9F74-9B4D1499898F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F5BDAD5D-9719-4A0B-827F-46FC8AC4305F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F5BDAD5D-9719-4A0B-827F-46FC8AC4305F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F5BDAD5D-9719-4A0B-827F-46FC8AC4305F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F5BDAD5D-9719-4A0B-827F-46FC8AC4305F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
