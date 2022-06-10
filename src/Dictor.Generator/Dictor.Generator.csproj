@@ -6,6 +6,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IncludeBuildOutput>false</IncludeBuildOutput>
+        <AssemblyInformationVersion>0.1.0</AssemblyInformationVersion>
     </PropertyGroup>
 
     <ItemGroup>
@@ -14,6 +15,11 @@
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.2.0" PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Attributes.cs" />
+      <EmbeddedResource Include="Attributes.cs" />
     </ItemGroup>
 
 </Project>

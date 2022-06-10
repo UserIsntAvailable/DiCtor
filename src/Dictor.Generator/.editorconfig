@@ -2,4 +2,5 @@ root = true
 [*]
 
 dotnet_diagnostic.MA0026.severity = none
-dotnet_diagnostic.MA0032.severity = suggestion
+dotnet_diagnostic.MA0032.severity = warning
+dotnet_diagnostic.MA0051.severity = none
