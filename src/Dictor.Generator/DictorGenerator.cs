@@ -8,26 +8,21 @@ public class DictorGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // TODO: Change equality comparer of GeneratedClassInfo
+
         var decoratedClasses = context.SyntaxProvider.CreateSyntaxProvider(
             SyntaxChecker.IsDecoratedClass,
             static (context, cancellationToken) =>
             {
                 var classNode = (ClassDeclarationSyntax)context.Node;
 
-                return(Node: classNode,
-                       Symbol: (ITypeSymbol)context.SemanticModel.GetDeclaredSymbol(classNode, cancellationToken)!);
+                return(Node: classNode, Symbol: context.SemanticModel.GetDeclaredSymbol(classNode, cancellationToken)!);
             }
         );
 
         var (partialClasses, nonPartialClasses) = decoratedClasses.WhereSplit(
             static decoratedClass => decoratedClass.Node.Modifiers.Any(SyntaxKind.PartialKeyword)
         );
-
-        /*
-         * Features:
-         *  Include/Exclude Attribute
-         *  Properties
-         */
 
         var generatedClassesInfo = partialClasses.Select(
             static (partialClass, _) =>
@@ -36,8 +31,9 @@ public class DictorGenerator : IIncrementalGenerator
 
                 var namespaceSymbol = classSymbol.ContainingNamespace;
                 var @namespace = namespaceSymbol.IsGlobalNamespace ? "" : namespaceSymbol.ToDisplayString();
+                var genericTypes = ImmutableArray.CreateRange(classSymbol.TypeParameters.Select(x => x.Name));
 
-                return new GeneratedClassInfo(@namespace, classSymbol.Name, GetFieldsInfo(classSymbol));
+                return new GeneratedClassInfo(@namespace, classSymbol.Name, genericTypes, GetFieldsInfo(classSymbol));
             }
         ).Collect();
 
@@ -70,20 +66,20 @@ public class DictorGenerator : IIncrementalGenerator
                 {
                     context.CancellationToken.ThrowIfCancellationRequested();
 
-                    var (@namespace, name, fields) = generatedClassInfo;
+                    var (@namespace, name, genericTypes, fields) = generatedClassInfo;
 
                     // TODO: Show diagnostic if constructor already exists
                     // TODO: Be able to change constructor visibility
                     // TODO: Format name of constructor parameters to cameCase ( instead of using _fieldName, use fieldName )
 
-                    // TODO: Need to check in Linux if this works
                     var newLine = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "\r\n" : "\n";
                     const string TAB = "    ";
 
-                    var source = $@"namespace {@namespace};
+                    // TODO: I want to probably refactor this to use a StringBuilder
+                    var source = $@"{(@namespace != "" ? $"namespace {@namespace};" : "")}
 
 [global::System.CodeDom.Compiler.GeneratedCode(""{nameof(DictorGenerator)}"", ""{RuntimeInformation.FrameworkDescription}"")]
-partial class {name}
+partial class {name}{(genericTypes.Length > 0 ? $"<{string.Join(", ", genericTypes)}>" : "")}
 {{
     public {name}(
         {string.Join($",{newLine}{TAB}{TAB}", fields.Select(x => $"global::{x.Type} {x.Name}"))})
@@ -104,7 +100,7 @@ partial class {name}
     }
 
     // TODO: Need to revisit this.
-    private static ImmutableArray<GeneratedFieldInfo> GetFieldsInfo(ITypeSymbol typeSymbol)
+    private static ImmutableArray<GeneratedFieldInfo> GetFieldsInfo(INamedTypeSymbol typeSymbol)
     {
         var fields = new List<GeneratedFieldInfo>();
 

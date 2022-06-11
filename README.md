@@ -7,7 +7,7 @@ Source Generator to create default dependency injection constructor.
 
 1. [ ] Records ( Records are not `Classes` { for the roslyn compiler } )
 2. [ ] Inheritance ( Fields of base class are not being added )
-3. [ ] Generics ( \<T> is also part of the `Type` signature )
+3. [x] Generics ( \<T> is also part of the `Type` signature )
 
 ### Features
 
