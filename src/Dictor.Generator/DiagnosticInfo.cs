@@ -9,8 +9,8 @@ internal static class DiagnosticInfo
         public static readonly DiagnosticDescriptor ClassHasToBePartial = new(
             "DCT0001",
             // TODO: Improve message?
-            "The type decorated with DiCtor attribute should have a partial modifier",
-            "The type '{0}' decorated with DiCtor attribute should have a partial modifier",
+            $"The type decorated with {nameof(DiCtor)} attribute should have a partial modifier",
+            $"The type '{{0}}' decorated with {nameof(DiCtor)} attribute should have a partial modifier",
             "Usage",
             DiagnosticSeverity.Error,
             isEnabledByDefault: true

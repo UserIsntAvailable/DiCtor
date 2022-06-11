@@ -25,11 +25,10 @@ internal static class SyntaxChecker
         // TODO: Why not just use attribute.Name.ToString()? ( They seem exactly the same )
         var attributeName = (attribute.Name as SimpleNameSyntax)!.Identifier.Text;
 
-        // TODO: Use variable constant instead of magic string
         return attributeName switch
         {
-            "DiCtor" => true,
-            _        => false,
+            nameof(DiCtor) => true,
+            _              => false,
         };
     }
 }

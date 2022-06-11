@@ -4,7 +4,8 @@ namespace Dictor
 {
     // TODO: Should I called Dictor instead?
     [AttributeUsage(AttributeTargets.Class)]
-    public class DiCtor : Attribute
+    // ReSharper disable once ClassNeverInstantiated.Global
+    internal class DiCtor : Attribute
     {
     }
 }

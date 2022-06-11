@@ -13,6 +13,7 @@ public interface ICase
 public class TestData : IEnumerable<object[]>
 {
     private const string TEST_NAMESPACE_NAME = "DictorGeneratorTests";
+    private const string ATTRIBUTE_NAME = nameof(DiCtor);
     private const string TEST_CLASS_NAME = DictorGeneratorTests.TEST_CLASS_NAME;
 
     public IEnumerator<object[]> GetEnumerator()
@@ -32,7 +33,7 @@ using Dictor;
 
 namespace {TEST_NAMESPACE_NAME};
                                             
-[DiCtor]
+[{ATTRIBUTE_NAME}]
 public partial class {TEST_CLASS_NAME}
 {{
     private readonly IComparable _comparable;
@@ -60,7 +61,7 @@ partial class {TEST_CLASS_NAME}
         public string SourceCode => $@"using System;
 using Dictor;
 
-[DiCtor]
+[{ATTRIBUTE_NAME}]
 public partial class {TEST_CLASS_NAME}
 {{
     private readonly IComparable _comparable;
@@ -90,7 +91,7 @@ using Dictor;
 
 namespace {TEST_NAMESPACE_NAME};
                                             
-[DiCtor]
+[{ATTRIBUTE_NAME}]
 public partial class {TEST_CLASS_NAME}<T, U>
 {{
     private readonly IComparable _comparable;
