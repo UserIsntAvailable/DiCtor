@@ -1,5 +1,8 @@
 ﻿using System.Collections.Immutable;
 using System.Runtime.InteropServices;
+using Dictor.Generator.Diagnostics;
+using Dictor.Generator.Models;
+using static Dictor.Generator.Diagnostics.DiagnosticDescriptors;
 
 namespace Dictor.Generator;
 
@@ -11,72 +14,62 @@ public class DictorGenerator : IIncrementalGenerator
         // TODO: Change equality comparer of GeneratedClassInfo
 
         var decoratedClasses = context.SyntaxProvider.CreateSyntaxProvider(
+            // TODO: Use ForAttributeWithMetadataName whenever it is available
             SyntaxChecker.IsDecoratedClass,
             static (context, cancellationToken) =>
             {
                 var classNode = (ClassDeclarationSyntax)context.Node;
 
-                return(Node: classNode, Symbol: context.SemanticModel.GetDeclaredSymbol(classNode, cancellationToken)!);
+                return(IsPartial: classNode.Modifiers.Any(SyntaxKind.PartialKeyword),
+                       Symbol: context.SemanticModel.GetDeclaredSymbol(classNode, cancellationToken)!);
             }
         );
 
-        var (partialClasses, nonPartialClasses) = decoratedClasses.WhereSplit(
-            static decoratedClass => decoratedClass.Node.Modifiers.Any(SyntaxKind.PartialKeyword)
+        var partialClasses = decoratedClasses.Where(static x => x.IsPartial).Select(static (x, _) => x.Symbol);
+        var nonPartialClasses = decoratedClasses.Where(static x => !x.IsPartial).Select(static (x, _) => x.Symbol);
+
+        context.RegisterSourceOutput(
+            nonPartialClasses.Select(
+                static (classSymbol, _) => ClassHasToBePartial.CreateDiagnostic(
+                    classSymbol,
+                    classSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)
+                )
+            ),
+            static (context, diagnostic) => context.ReportDiagnostic(diagnostic)
         );
 
         var generatedClassesInfo = partialClasses.Select(
-            static (partialClass, _) =>
+            static (classSymbol, _) =>
             {
-                var (_, classSymbol) = partialClass;
-
                 var namespaceSymbol = classSymbol.ContainingNamespace;
                 var @namespace = namespaceSymbol.IsGlobalNamespace ? "" : namespaceSymbol.ToDisplayString();
-                var genericTypes = ImmutableArray.CreateRange(classSymbol.TypeParameters.Select(x => x.Name));
 
-                return new GeneratedClassInfo(@namespace, classSymbol.Name, genericTypes, GetFieldsInfo(classSymbol));
-            }
-        ).Collect();
-
-        var nonPartialDiagnostics = nonPartialClasses.Select(
-            static (nonPartialClass, _) =>
-            {
-                var (classNode, classSymbol) = nonPartialClass;
-
-                return DiagnosticInfo.ClassHasToBePartial(
-                    classNode.Identifier.GetLocation(),
-                    classSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)
+                return new ClassInfo(
+                    @namespace,
+                    classSymbol.Name,
+                    GetTypeParametersInfo(classSymbol),
+                    GetFieldsInfo(classSymbol)
                 );
             }
-        ).Collect();
-
-        var sourceOutputInfo = nonPartialDiagnostics.Combine(generatedClassesInfo);
+        );
 
         context.RegisterSourceOutput(
-            sourceOutputInfo,
-            static (context, sourceOutputInfo) =>
+            generatedClassesInfo,
+            static (context, generatedClassInfo) =>
             {
-                var (diagnostics, generatedClassesInfo) = sourceOutputInfo;
+                context.CancellationToken.ThrowIfCancellationRequested();
 
-                foreach(var diagnostic in diagnostics)
-                {
-                    context.ReportDiagnostic(diagnostic);
-                }
+                var (@namespace, name, genericTypes, fields) = generatedClassInfo;
 
-                foreach(var generatedClassInfo in generatedClassesInfo)
-                {
-                    context.CancellationToken.ThrowIfCancellationRequested();
+                // TODO: Show diagnostic if constructor already exists
+                // TODO: Be able to change constructor visibility
+                // TODO: Format name of constructor parameters to cameCase ( instead of using _fieldName, use fieldName )
 
-                    var (@namespace, name, genericTypes, fields) = generatedClassInfo;
+                var newLine = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "\r\n" : "\n";
+                const string TAB = "    ";
 
-                    // TODO: Show diagnostic if constructor already exists
-                    // TODO: Be able to change constructor visibility
-                    // TODO: Format name of constructor parameters to cameCase ( instead of using _fieldName, use fieldName )
-
-                    var newLine = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "\r\n" : "\n";
-                    const string TAB = "    ";
-
-                    // TODO: I want to probably refactor this to use a StringBuilder
-                    var source = $@"{(@namespace != "" ? $"namespace {@namespace};" : "")}
+                // TODO: I want to probably refactor this to use a CompilationUnit
+                var source = $@"{(@namespace != "" ? $"namespace {@namespace};" : "")}
 
 [global::System.CodeDom.Compiler.GeneratedCode(""{nameof(DictorGenerator)}"", ""{RuntimeInformation.FrameworkDescription}"")]
 partial class {name}{(genericTypes.Length > 0 ? $"<{string.Join(", ", genericTypes)}>" : "")}
@@ -89,8 +82,7 @@ partial class {name}{(genericTypes.Length > 0 ? $"<{string.Join(", ", genericTyp
 }}
 ";
 
-                    context.AddSource($"{name}.g.cs", source);
-                }
+                context.AddSource($"{name}.g.cs", source);
             }
         );
 
@@ -99,10 +91,21 @@ partial class {name}{(genericTypes.Length > 0 ? $"<{string.Join(", ", genericTyp
         );
     }
 
-    // TODO: Need to revisit this.
-    private static ImmutableArray<GeneratedFieldInfo> GetFieldsInfo(INamedTypeSymbol typeSymbol)
+    private static ImmutableArray<string> GetTypeParametersInfo(INamedTypeSymbol classSymbol)
     {
-        var fields = new List<GeneratedFieldInfo>();
+        var typeParameters = ImmutableArray.CreateBuilder<string>();
+
+        foreach(var typeParameterSymbol in classSymbol.TypeParameters)
+        {
+            typeParameters.Add(typeParameterSymbol.Name);
+        }
+
+        return typeParameters.ToImmutable();
+    }
+
+    private static ImmutableArray<FieldInfo> GetFieldsInfo(INamedTypeSymbol typeSymbol)
+    {
+        var fields = ImmutableArray.CreateBuilder<FieldInfo>();
 
         foreach(var member in typeSymbol.GetMembers())
         {
@@ -112,7 +115,7 @@ partial class {name}{(genericTypes.Length > 0 ? $"<{string.Join(", ", genericTyp
                } fieldSymbol)
             {
                 fields.Add(
-                    new GeneratedFieldInfo(
+                    new FieldInfo(
                         fieldSymbol.Name,
                         fieldSymbol.Type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)
                     )
@@ -120,6 +123,6 @@ partial class {name}{(genericTypes.Length > 0 ? $"<{string.Join(", ", genericTyp
             }
         }
 
-        return ImmutableArray.CreateRange(fields);
+        return fields.ToImmutable();
     }
 }
