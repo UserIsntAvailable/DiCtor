@@ -27,8 +27,8 @@ internal static class SyntaxChecker
 
         return attributeName switch
         {
-            nameof(DiCtor) => true,
-            _              => false,
+            nameof(DiCtorAttribute) => true,
+            _                       => false,
         };
     }
 }
