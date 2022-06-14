@@ -25,10 +25,8 @@ internal static class SyntaxChecker
         // TODO: Why not just use attribute.Name.ToString()? ( They seem exactly the same )
         var attributeName = (attribute.Name as SimpleNameSyntax)!.Identifier.Text;
 
-        return attributeName switch
-        {
-            nameof(DiCtorAttribute) => true,
-            _                       => false,
-        };
+        // TODO: There has to be a better way to deal with this
+        return string.Equals(attributeName, nameof(DiCtorAttribute), StringComparison.Ordinal)
+            || string.Equals(attributeName, nameof(DiCtorAttribute).Replace("Attribute", ""), StringComparison.Ordinal);
     }
 }
