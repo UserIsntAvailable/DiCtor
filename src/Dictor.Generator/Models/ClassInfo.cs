@@ -1,8 +1,6 @@
-﻿using System.Collections.Immutable;
+﻿namespace Dictor.Generator.Models;
 
-namespace Dictor.Generator.Models;
-
-internal record struct ClassInfo(
+internal record ClassInfo(
     string Namespace,
     string Name,
     ImmutableArray<string> TypeParameters,

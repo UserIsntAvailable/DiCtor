@@ -1,6 +1,6 @@
 // ReSharper disable MemberHidesStaticFromOuterClass
 
-namespace Dictor.Generator.Diagnostics;
+namespace Dictor.Generator;
 
 internal static class DiagnosticDescriptors
 {

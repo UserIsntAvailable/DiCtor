@@ -1,4 +1,4 @@
-﻿namespace Dictor.Generator.Diagnostics;
+﻿namespace Dictor.Generator.Extensions;
 
 internal static class DiagnosticExtensions
 {

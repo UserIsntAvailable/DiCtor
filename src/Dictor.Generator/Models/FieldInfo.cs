@@ -1,3 +1,3 @@
 namespace Dictor.Generator.Models;
 
-internal record struct FieldInfo(string Name, string Type);
+internal record FieldInfo(string Name, string Type);

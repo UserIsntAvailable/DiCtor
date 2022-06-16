@@ -1,8 +1,6 @@
-﻿using System.Collections.Immutable;
-using System.Runtime.InteropServices;
-using Dictor.Generator.Diagnostics;
-using Dictor.Generator.Models;
-using static Dictor.Generator.Diagnostics.DiagnosticDescriptors;
+﻿using System.Text;
+using Dictor.Generator.Extensions;
+using static Dictor.Generator.DiagnosticDescriptors;
 
 namespace Dictor.Generator;
 
@@ -11,84 +9,92 @@ public class DictorGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // TODO: Change equality comparer of GeneratedClassInfo
+        context.RegisterPostInitializationOutput(
+            static context => context.AddSource("Attributes.cs", Resources.GetAttributesFileContent())
+        );
 
-        var decoratedClasses = context.SyntaxProvider.CreateSyntaxProvider(
-            // TODO: Use ForAttributeWithMetadataName whenever it is available
-            SyntaxChecker.IsDecoratedClass,
+        // TODO: Add '#nullable enable' and '#pragma warning disable' to generated source
+        // TODO: Be able to change constructor visibility via attribute
+        // TODO: Change equality comparer of ClassInfo and FieldInfo
+        // TODO: Create proper SymbolDisplayFormat to display FullyQualifiedName
+        // TODO: Format name of constructor parameters to cameCase ( instead of using _fieldName, use fieldName )
+        // TODO: Include type parameters on class name ( Change SymbolDisplayFormat )
+        // TODO: Show diagnostic if constructor already exists
+
+        // TODO: Use ForAttributeWithMetadataName whenever it is available
+        var candidateClasses = context.SyntaxProvider.CreateSyntaxProvider(
+            static (node, _) => node is ClassDeclarationSyntax { AttributeLists.Count: > 0, },
             static (context, cancellationToken) =>
             {
                 var classNode = (ClassDeclarationSyntax)context.Node;
-
-                return(IsPartial: classNode.Modifiers.Any(SyntaxKind.PartialKeyword),
-                       Symbol: context.SemanticModel.GetDeclaredSymbol(classNode, cancellationToken)!);
+                
+                return(Node: classNode, Symbol: context.SemanticModel.GetDeclaredSymbol(classNode, cancellationToken)!);
             }
         );
 
-        var partialClasses = decoratedClasses.Where(static x => x.IsPartial).Select(static (x, _) => x.Symbol);
-        var nonPartialClasses = decoratedClasses.Where(static x => !x.IsPartial).Select(static (x, _) => x.Symbol);
+        var decoratedClasses = candidateClasses
+            .Where(@class => @class.Symbol.HasKnownAttribute(typeof(DiCtorAttribute).FullName))
+            .Select((@class, _) => (IsPartial: @class.Node.Modifiers.Any(SyntaxKind.PartialKeyword), @class.Symbol));
+
+        var classInfoWithDiagnostics = decoratedClasses.Select(
+            static (@class, _) => (ClassInfo: GetClassInfo(@class, out var diagnostics), Diagnostics: diagnostics)
+        );
 
         context.RegisterSourceOutput(
-            nonPartialClasses.Select(
-                static (classSymbol, _) => ClassHasToBePartial.CreateDiagnostic(
+            classInfoWithDiagnostics.Select(static (x, _) => x.Diagnostics),
+            static (context, diagnostics) =>
+            {
+                foreach(var diagnostic in diagnostics)
+                {
+                    context.ReportDiagnostic(diagnostic);
+                }
+            }
+        );
+
+        context.RegisterSourceOutput(
+            classInfoWithDiagnostics.Where(static x => x.ClassInfo is not null).Select(static (x, _) => x.ClassInfo),
+            static (context, classInfo) =>
+            {
+                context.AddSource($"{classInfo!.Name}.g.cs", SyntaxBuilder.From(classInfo).GetText(Encoding.UTF8));
+            }
+        );
+    }
+
+    private static ClassInfo? GetClassInfo(
+        (bool IsPartial, INamedTypeSymbol Symbol) decoratedClass,
+        out ImmutableArray<Diagnostic> diagnostics)
+    {
+        var diagnosticBuilder = ImmutableArray.CreateBuilder<Diagnostic>();
+        var (isPartialClass, classSymbol) = decoratedClass;
+
+        if(!isPartialClass)
+        {
+            diagnosticBuilder.Add(
+                ClassHasToBePartial.CreateDiagnostic(
                     classSymbol,
                     classSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)
                 )
-            ),
-            static (context, diagnostic) => context.ReportDiagnostic(diagnostic)
+            );
+
+            goto FoundDiagnostics;
+        }
+
+        var namespaceSymbol = classSymbol.ContainingNamespace;
+        var @namespace = namespaceSymbol.IsGlobalNamespace ? "" : namespaceSymbol.ToDisplayString();
+
+        diagnostics = diagnosticBuilder.ToImmutable();
+
+        return new ClassInfo(
+            @namespace,
+            classSymbol.Name,
+            GetTypeParametersInfo(classSymbol),
+            GetFieldsInfo(classSymbol)
         );
 
-        var generatedClassesInfo = partialClasses.Select(
-            static (classSymbol, _) =>
-            {
-                var namespaceSymbol = classSymbol.ContainingNamespace;
-                var @namespace = namespaceSymbol.IsGlobalNamespace ? "" : namespaceSymbol.ToDisplayString();
+        FoundDiagnostics:
+        diagnostics = diagnosticBuilder.ToImmutable();
 
-                return new ClassInfo(
-                    @namespace,
-                    classSymbol.Name,
-                    GetTypeParametersInfo(classSymbol),
-                    GetFieldsInfo(classSymbol)
-                );
-            }
-        );
-
-        context.RegisterSourceOutput(
-            generatedClassesInfo,
-            static (context, generatedClassInfo) =>
-            {
-                context.CancellationToken.ThrowIfCancellationRequested();
-
-                var (@namespace, name, genericTypes, fields) = generatedClassInfo;
-
-                // TODO: Show diagnostic if constructor already exists
-                // TODO: Be able to change constructor visibility
-                // TODO: Format name of constructor parameters to cameCase ( instead of using _fieldName, use fieldName )
-
-                var newLine = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "\r\n" : "\n";
-                const string TAB = "    ";
-
-                // TODO: I want to probably refactor this to use a CompilationUnit
-                var source = $@"{(@namespace != "" ? $"namespace {@namespace};" : "")}
-
-[global::System.CodeDom.Compiler.GeneratedCode(""{nameof(DictorGenerator)}"", ""{RuntimeInformation.FrameworkDescription}"")]
-partial class {name}{(genericTypes.Length > 0 ? $"<{string.Join(", ", genericTypes)}>" : "")}
-{{
-    public {name}(
-        {string.Join($",{newLine}{TAB}{TAB}", fields.Select(x => $"global::{x.Type} {x.Name}"))})
-    {{
-        {string.Join($"{newLine}{TAB}{TAB}", fields.Select(x => $"this.{x.Name} = {x.Name};"))}
-    }}
-}}
-";
-
-                context.AddSource($"{name}.g.cs", source);
-            }
-        );
-
-        context.RegisterPostInitializationOutput(
-            static context => context.AddSource("Attributes.cs", Utils.GetAttributesFileContent())
-        );
+        return null;
     }
 
     private static ImmutableArray<string> GetTypeParametersInfo(INamedTypeSymbol classSymbol)
@@ -109,10 +115,7 @@ partial class {name}{(genericTypes.Length > 0 ? $"<{string.Join(", ", genericTyp
 
         foreach(var member in typeSymbol.GetMembers())
         {
-            if(member is IFieldSymbol
-               {
-                   IsReadOnly: true, IsStatic: false, IsImplicitlyDeclared: false,
-               } fieldSymbol)
+            if(member is IFieldSymbol { IsReadOnly: true, IsStatic: false, IsImplicitlyDeclared: false, } fieldSymbol)
             {
                 fields.Add(
                     new FieldInfo(

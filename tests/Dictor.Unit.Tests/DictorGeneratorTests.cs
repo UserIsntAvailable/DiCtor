@@ -1,5 +1,7 @@
-﻿using Dictor.Unit.Tests.TestsData;
+﻿using Dictor.Generator.Helpers;
+using Dictor.Unit.Tests.TestsData;
 using Microsoft.CodeAnalysis.Testing;
+using Microsoft.CodeAnalysis.Text;
 using VerifyCS = Dictor.Unit.Tests.CSharpGeneratorVerifier<Dictor.Generator.DictorGenerator>;
 
 namespace Dictor.Unit.Tests;
@@ -11,7 +13,7 @@ public class DictorGeneratorTests
     {
         await new VerifyCS.Test
         {
-            TestState = { GeneratedSources = { Source("Attributes.cs", Utils.GetAttributesFileContent()), }, },
+            TestState = { GeneratedSources = { Source("Attributes.cs", Resources.GetAttributesFileContent()), }, },
         }.RunAsync();
     }
 
@@ -27,7 +29,7 @@ public class DictorGeneratorTests
                 Sources = { data.SourceCode, },
                 GeneratedSources =
                 {
-                    Source("Attributes.cs", Utils.GetAttributesFileContent()),
+                    Source("Attributes.cs", Resources.GetAttributesFileContent()),
                     Source($"{data.TestClassName}.g.cs", data.GeneratedCode),
                 },
             },
@@ -49,7 +51,7 @@ public class DictorGeneratorTests
         await test.RunAsync();
     }
 
-    private static (Type, string, string) Source(string typeName, string source)
+    private static (Type, string, SourceText) Source(string typeName, SourceText source)
     {
         return(typeof(Adapter<DictorGenerator>), typeName, source);
     }
