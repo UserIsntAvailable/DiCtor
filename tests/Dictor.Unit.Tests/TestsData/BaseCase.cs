@@ -9,29 +9,26 @@ public abstract class BaseCase
 {
     protected const string TEST_NAMESPACE_NAME = "DictorGeneratorTests";
 
+    public SourceText SourceCode =>
+        BuildCompilationUnit(this.SourceCompilationUnit, this.Namespace, this.SourceClass).GetText(Encoding.UTF8);
+
     public virtual string TestClassName => nameof(BaseCase);
+
+    protected static CompilationUnitSyntax BuildCompilationUnit(
+        CompilationUnitSyntax compilationSyntax,
+        BaseNamespaceDeclarationSyntax? namespaceSyntax,
+        ClassDeclarationSyntax classSyntax)
+    {
+        return namespaceSyntax == null
+            ? compilationSyntax.AddMembers(classSyntax).NormalizeWhitespace()
+            : compilationSyntax.AddMembers(namespaceSyntax.AddMembers(classSyntax)).NormalizeWhitespace();
+    }
     
     protected virtual string AttributeName => nameof(DiCtorAttribute);
 
-    public SourceText SourceCode => this.SourceCompilationUnit.GetText(Encoding.UTF8);
-    
-#pragma warning disable CS0649
     private CompilationUnitSyntax? _sourceCompilationUnit;
-#pragma warning restore CS0649
-    protected virtual CompilationUnitSyntax SourceCompilationUnit
-    {
-        get
-        {
-            if(_sourceCompilationUnit is not null) return _sourceCompilationUnit;
-            
-            var compilationUnit = CompilationUnit().WithUsings(this.Usings);
-            var classSyntax = this.SourceClass.WithMembers(this.FieldsMembers);
-
-            return this.Namespace == null
-                ? compilationUnit.AddMembers(classSyntax).NormalizeWhitespace()
-                : compilationUnit.AddMembers(this.Namespace!.AddMembers(classSyntax)).NormalizeWhitespace();
-        }
-    }
+    protected virtual CompilationUnitSyntax SourceCompilationUnit =>
+        _sourceCompilationUnit ??= CompilationUnit().WithUsings(this.Usings);
 
     private IEnumerable<Type>? _fieldTypes;
     protected virtual IEnumerable<Type>? FieldTypes => _fieldTypes ??=
@@ -63,7 +60,8 @@ public abstract class BaseCase
         ClassDeclaration(this.TestClassName)
             .AddAttributeLists(AttributeList(SingletonSeparatedList(
                 Attribute(IdentifierName(this.AttributeName)))))
-            .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.PartialKeyword));
+            .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.PartialKeyword))
+            .WithMembers(this.FieldsMembers);
     
     private SyntaxList<UsingDirectiveSyntax>? _usings;
     private SyntaxList<UsingDirectiveSyntax> Usings => _usings ??= new SyntaxList<UsingDirectiveSyntax>()

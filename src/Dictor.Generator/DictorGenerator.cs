@@ -13,12 +13,8 @@ public class DictorGenerator : IIncrementalGenerator
             static context => context.AddSource("Attributes.cs", Resources.GetAttributesFileContent())
         );
 
-        // TODO: Add '#nullable enable' and '#pragma warning disable' to generated source
         // TODO: Be able to change constructor visibility via attribute
-        // TODO: Change equality comparer of ClassInfo and FieldInfo
-        // TODO: Create proper SymbolDisplayFormat to display FullyQualifiedName
         // TODO: Format name of constructor parameters to cameCase ( instead of using _fieldName, use fieldName )
-        // TODO: Include type parameters on class name ( Change SymbolDisplayFormat )
         // TODO: Show diagnostic if constructor already exists
 
         // TODO: Use ForAttributeWithMetadataName whenever it is available
@@ -51,11 +47,16 @@ public class DictorGenerator : IIncrementalGenerator
             }
         );
 
+        var classInfo = classInfoWithDiagnostics
+            .Where(static x => x.ClassInfo is not null)
+            .Select(static (x, _) => x.ClassInfo)!
+            .WithComparer(ClassInfo.Comparer.Default);
+
         context.RegisterSourceOutput(
-            classInfoWithDiagnostics.Where(static x => x.ClassInfo is not null).Select(static (x, _) => x.ClassInfo),
+            classInfo,
             static (context, classInfo) =>
             {
-                context.AddSource($"{classInfo!.Name}.g.cs", SyntaxBuilder.From(classInfo).GetText(Encoding.UTF8));
+                context.AddSource($"{classInfo.Name}.g.cs", SyntaxBuilder.From(classInfo).GetText(Encoding.UTF8));
             }
         );
     }
@@ -120,7 +121,11 @@ public class DictorGenerator : IIncrementalGenerator
                 fields.Add(
                     new FieldInfo(
                         fieldSymbol.Name,
-                        fieldSymbol.Type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)
+                        fieldSymbol.Type.ToDisplayString(
+                            SymbolDisplayFormat.FullyQualifiedFormat.AddMiscellaneousOptions(
+                                SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
+                            )
+                        )
                     )
                 );
             }

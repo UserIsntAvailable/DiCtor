@@ -6,8 +6,9 @@ Source Generator to create default dependency injection constructor.
 ### Edge Cases
 
 1. [ ] Records ( Records are not `Classes` { for the roslyn compiler } )
-2. [ ] Inheritance ( Fields of base class are not being added )
-3. [x] Generics ( \<T> is also part of the `Type` signature )
+2. [ ] Private Classes
+3. [ ] Inheritance ( Fields of base class are not being added )
+4. [x] Generics ( \<T> is also part of the `Type` signature )
 
 ### Features
 
